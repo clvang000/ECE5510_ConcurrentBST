@@ -1,7 +1,6 @@
 package concurrent_tree;
 
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.AtomicMarkableReference;
 
 /**
  * Lock-Free Binary Tree
@@ -54,18 +53,19 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 			} else {
 				//Tree is not empty, iterate into the tree
 				curNode = root.get();
-				if(curNode.children.isMarked()) {
+				if(curNode.isMarked()) {
 					//Handle the special situation where the root is logically
 					//deleted
 					LockFreeNode<T> replacement = findReplacement(curNode);
 					if(replacement != null) {
 						//Set the replacement's pointers
 						replacement.parent = null;
-						replacement.insertChild(LockFreeNode.childPointer.LEFT,
-								curNode.children.getReference().left);
-						replacement.insertChild(
-								LockFreeNode.childPointer.RIGHT,
-								curNode.children.getReference().right);
+						replacement.insertChild(ChildPointer.LEFT,
+								curNode.getChild(ChildPointer.LEFT,
+								marked));
+						replacement.insertChild(ChildPointer.RIGHT,
+								curNode.getChild(ChildPointer.RIGHT,
+								marked));
 					}
 					
 					//Set the root to point to the replacement.  If it
@@ -83,15 +83,15 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 					if(compare > 0) {
 						//curNode is "bigger" than the passed data, iterate
 						//into the left subtree
-						curNode = curNode.children.get(marked).left;
+						curNode = curNode.getChild(ChildPointer.LEFT, marked);
 					} else if(compare < 0) {
 						//curNode is "smaller" than the passed data, iterate
 						//into the right subtree
-						curNode = curNode.children.get(marked).right;
+						curNode = curNode.getChild(ChildPointer.RIGHT, marked);
 					} else {
 						//Data is already in the tree, make sure it isn't
 						//isn't marked for deletion
-						if(!curNode.children.isMarked())
+						if(!curNode.isMarked())
 							return false;
 						else {
 							//TODO deletion
@@ -109,14 +109,12 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 				//Found an appropriate location, attempt to insert
 				newNode.parent = parentNode;
 				if(compare > 0) {
-					if(parentNode.insertChild(LockFreeNode.childPointer.LEFT,
-							newNode))
+					if(parentNode.insertChild(ChildPointer.LEFT, newNode))
 						return true;
 					else
 						continue retry;
 				} else {
-					if(parentNode.insertChild(LockFreeNode.childPointer.RIGHT,
-							newNode))
+					if(parentNode.insertChild(ChildPointer.RIGHT, newNode))
 						return true;
 					else
 						continue retry;
@@ -141,6 +139,7 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 		
 		LockFreeNode<T> curNode = root.get();
 		int compare = 0;
+		boolean[] marked = {false};
 		
 		//Tree is not empty, search the tree
 		while(curNode != null) {
@@ -148,17 +147,16 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 			if(compare > 0) {
 				//curNode is "bigger" than the passed data, search the left
 				//subtree
-				curNode = curNode.children.getReference().left;
+				curNode = curNode.getChild(ChildPointer.LEFT, marked);
 			} else if(compare < 0) {
 				//curNode is "smaller" than the passed data, search the
 				//right subtree
-				curNode = curNode.children.getReference().right;
+				curNode = curNode.getChild(ChildPointer.RIGHT, marked);
 			} else {
 				//Found the data, make sure it isn't marked
-				return !curNode.children.isMarked();
+				return !curNode.isMarked();
 			}
-		}
-				
+		}			
 		//Tree is empty or data is not in the tree
 		return false;
 	}

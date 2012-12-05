@@ -27,7 +27,7 @@ public class LockFreeNode<T> {
 	 *
 	 * @param <T> The generic data type being wrapped by the LockFreeNode class
 	 */
-	public class childNodes<T> {
+	public class childNodes {
 		LockFreeNode<T> left;
 		LockFreeNode<T> right;
 		
@@ -41,21 +41,11 @@ public class LockFreeNode<T> {
 	}
 	
 	/**
-	 * Specifies which child node is being accessed.
-	 * 
-	 * @author Rob Lyerly <rlyerly@vt.edu>
-	 */
-	public enum childPointer {
-		LEFT,
-		RIGHT
-	}
-	
-	/**
 	 * Object variables.
 	 */
 	public T data;
 	public LockFreeNode<T> parent;
-	public AtomicMarkableReference<childNodes<T>> children;
+	private AtomicMarkableReference<childNodes> children;
 	
 	/**
 	 * Instantiates a LockFreeNode object.  Stores a reference to the data
@@ -66,8 +56,8 @@ public class LockFreeNode<T> {
 	public LockFreeNode(T data) {
 		this.data = data;
 		parent = new LockFreeNode<T>(null);
-		children = new AtomicMarkableReference<childNodes<T>>(
-				new childNodes<T>(), false);
+		children = new AtomicMarkableReference<childNodes>(
+				new childNodes(), false);
 	}
 	
 	/**
@@ -76,11 +66,11 @@ public class LockFreeNode<T> {
 	 * @param child The new child pointer
 	 * @return True if the child pointer was set, false otherwise
 	 */
-	public boolean insertChild(childPointer cp, LockFreeNode<T> child) {
+	public boolean insertChild(ChildPointer cp, LockFreeNode<T> child) {
 		
 		//Create a new child node object to try and replace the current one
-		childNodes<T> curCN = children.getReference();
-		childNodes<T> newCN = new childNodes<T>();
+		childNodes curCN = children.getReference();
+		childNodes newCN = new childNodes();
 		switch(cp) {
 		case RIGHT:
 			newCN.left = curCN.left;
@@ -99,5 +89,30 @@ public class LockFreeNode<T> {
 			return true;
 		else		
 			return false;
+	}
+	
+	/**
+	 * Getter shorthand method to grab a child pointer.
+	 * @param cp Which child pointer to access
+	 * @return A pointer to the child node, or null if no child exists for that
+	 * subtree
+	 */
+	public LockFreeNode<T> getChild(ChildPointer cp, boolean[] marked) {
+		switch(cp) {
+		case LEFT:
+			return this.children.get(marked).left;
+		case RIGHT:
+			return this.children.get(marked).right;
+		default:
+			return null;
+		}
+	}
+	
+	/**
+	 * Getter method that returns whether or not the current node is marked.
+	 * @return True if the node is marked for deletion, false otherwise
+	 */
+	public boolean isMarked() {
+		return children.isMarked();
 	}
 }
