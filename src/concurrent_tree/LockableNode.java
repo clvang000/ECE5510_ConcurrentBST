@@ -15,7 +15,6 @@ public class LockableNode<T> {
 	
 	public T data;
 	public ReentrantLock lock;
-	public LockableNode<T> parent;
 	public LockableNode<T> left;
 	public LockableNode<T> right;
 	
@@ -26,7 +25,6 @@ public class LockableNode<T> {
 	 */
 	public LockableNode(T data) {
 		this.data = data;
-		parent = null;
 		left = null;
 		right = null;
 		lock = new ReentrantLock();

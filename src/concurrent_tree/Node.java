@@ -12,7 +12,6 @@ package concurrent_tree;
 public class Node<T> {
 
 	public T data;
-	public Node<T> parent;
 	public Node<T> left;
 	public Node<T> right;
 	
@@ -22,7 +21,6 @@ public class Node<T> {
 	 */
 	public Node(T data) {
 		this.data = data;
-		parent = null;
 		left = null;
 		right = null;
 	}

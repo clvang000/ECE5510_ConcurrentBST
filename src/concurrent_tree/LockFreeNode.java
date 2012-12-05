@@ -15,7 +15,8 @@ import java.util.concurrent.atomic.AtomicMarkableReference;
  * @param <T> The generic data type being wrapped by the LockFreeNode class
  */
 public class LockFreeNode<T> {
-
+	
+	
 	/**
 	 * Private class that allows coupling both child pointers to a single
 	 * reference.  This is useful when testing for logical removal because
@@ -27,25 +28,35 @@ public class LockFreeNode<T> {
 	 *
 	 * @param <T> The generic data type being wrapped by the LockFreeNode class
 	 */
-	public class childNodes {
+	public class ChildNodes {
+		
 		LockFreeNode<T> left;
 		LockFreeNode<T> right;
 		
 		/**
-		 * Creates a childNodes object with no child pointers.
+		 * Creates a ChildNodes object with no child pointers.
 		 */
-		public childNodes() {
+		public ChildNodes() {
 			left = null;
 			right = null;
+		}
+		
+		/**
+		 * Creates a ChildNodes object with the passed child nodes.
+		 * @param left The new left child of the current node.
+		 * @param right The new right child of the current node.
+		 */
+		public ChildNodes(LockFreeNode<T> left, LockFreeNode<T> right) {
+			this.left = left;
+			this.right = right;
 		}
 	}
 	
 	/**
-	 * Object variables.
+	 * LockFreeNode object variables.
 	 */
 	public T data;
-	public LockFreeNode<T> parent;
-	private AtomicMarkableReference<childNodes> children;
+	private AtomicMarkableReference<ChildNodes> children;
 	
 	/**
 	 * Instantiates a LockFreeNode object.  Stores a reference to the data
@@ -55,9 +66,8 @@ public class LockFreeNode<T> {
 	 */
 	public LockFreeNode(T data) {
 		this.data = data;
-		parent = new LockFreeNode<T>(null);
-		children = new AtomicMarkableReference<childNodes>(
-				new childNodes(), false);
+		children = new AtomicMarkableReference<ChildNodes>(
+				new ChildNodes(), false);
 	}
 	
 	/**
@@ -66,29 +76,24 @@ public class LockFreeNode<T> {
 	 * @param child The new child pointer
 	 * @return True if the child pointer was set, false otherwise
 	 */
-	public boolean insertChild(ChildPointer cp, LockFreeNode<T> child) {
+	public boolean insertChild(Child cp, LockFreeNode<T> child) {
 		
 		//Create a new child node object to try and replace the current one
-		childNodes curCN = children.getReference();
-		childNodes newCN = new childNodes();
+		ChildNodes curCN = children.getReference();
+		ChildNodes newCN;
 		switch(cp) {
 		case RIGHT:
-			newCN.left = curCN.left;
-			newCN.right = child;
+			newCN = new ChildNodes(curCN.left, child);
 			break;
 		case LEFT:
-			newCN.left = child;
-			newCN.right = curCN.right;
+			newCN = new ChildNodes(child, curCN.right);
 			break;
 		default:
 			return false;
 		}
 		
 		//Attempt to replace the old childNodes object with the new one
-		if(children.compareAndSet(curCN, newCN, false, false))
-			return true;
-		else		
-			return false;
+		return children.compareAndSet(curCN, newCN, false, false);
 	}
 	
 	/**
@@ -97,7 +102,7 @@ public class LockFreeNode<T> {
 	 * @return A pointer to the child node, or null if no child exists for that
 	 * subtree
 	 */
-	public LockFreeNode<T> getChild(ChildPointer cp, boolean[] marked) {
+	public LockFreeNode<T> getChild(Child cp, boolean[] marked) {
 		switch(cp) {
 		case LEFT:
 			return this.children.get(marked).left;
@@ -109,10 +114,30 @@ public class LockFreeNode<T> {
 	}
 	
 	/**
+	 * Attempts to mark the node as logically deleted.
+	 * @return True if the node was marked, false otherwise.
+	 */
+	public boolean mark() {
+		return children.attemptMark(children.getReference(), true);
+	}
+	
+	/**
 	 * Getter method that returns whether or not the current node is marked.
 	 * @return True if the node is marked for deletion, false otherwise
 	 */
 	public boolean isMarked() {
 		return children.isMarked();
+	}
+	
+	/**
+	 * Returns whether or not the current node is a leaf node by checking the
+	 * child references.
+	 * @return True if the node is a leaf node, false otherwise
+	 */
+	public boolean isLeaf() {
+		//TODO less checking? Shouldn't they both be the same, and so we should
+		//only need to check one of them?
+		return (children.getReference().left == null &&
+				children.getReference().right == null);
 	}
 }

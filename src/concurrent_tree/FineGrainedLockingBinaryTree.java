@@ -59,8 +59,8 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 			curNode.lock();
 			headLock.unlock();
 			while(true) {
-				compare = curNode.data.compareTo(data);
 				parentNode = curNode;
+				compare = curNode.data.compareTo(data);
 				if(compare > 0) {
 					//curNode is "bigger" than newNode, enter left subtree
 					curNode = curNode.left;
@@ -88,7 +88,6 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 				parentNode.left = newNode;
 			else
 				parentNode.right = newNode;
-			newNode.parent = parentNode;
 			parentNode.unlock();
 		}
 		return true;
@@ -135,7 +134,6 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 				if(replacement != null) {
 					replacement.left = curNode.left;
 					replacement.right = curNode.right;
-					replacement.parent = null;
 				}
 				
 				curNode.unlock();
@@ -175,7 +173,6 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 					if(replacement != null) {
 						replacement.left = curNode.left;
 						replacement.right = curNode.right;
-						replacement.parent = parentNode;
 					}
 					
 					curNode.unlock();
@@ -227,10 +224,8 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 				curNode = curNode.right;
 				curNode.lock();
 			}
-			if(curNode.left != null) {
+			if(curNode.left != null)
 				curNode.left.lock();
-				curNode.left.parent = parentNode;
-			}
 			if(parentNode == subRoot)
 				parentNode.left = curNode.left;
 			else {
@@ -252,10 +247,8 @@ public class FineGrainedLockingBinaryTree<T extends Comparable<? super T>>
 				curNode = curNode.left;
 				curNode.lock();
 			}
-			if(curNode.right != null) {
+			if(curNode.right != null)
 				curNode.right.lock();
-				curNode.right.parent = parentNode;
-			}
 			if(parentNode == subRoot)
 				parentNode.right = curNode.right;
 			else {

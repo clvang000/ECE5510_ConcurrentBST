@@ -70,7 +70,6 @@ public class SequentialBinaryTree<T extends Comparable<? super T>>
 				parentNode.left = newNode;
 			else
 				parentNode.right = newNode;
-			newNode.parent = parentNode;
 		}
 		return true;
 	}
@@ -123,7 +122,6 @@ public class SequentialBinaryTree<T extends Comparable<? super T>>
 					
 					//Replace curNode with the replacement node
 					if(replacement != null) {
-						replacement.parent = parentNode;
 						replacement.left = curNode.left;
 						replacement.right = curNode.right;
 					}
@@ -161,8 +159,6 @@ public class SequentialBinaryTree<T extends Comparable<? super T>>
 				parentNode.left = curNode.left;
 			else
 				parentNode.right = curNode.left;
-			if(curNode.left != null)
-				curNode.left.parent = parentNode;
 		} else if(subRoot.right != null) {
 			//Find the "smallest" node in the right subtree as the replacement
 			parentNode = subRoot;
@@ -175,8 +171,6 @@ public class SequentialBinaryTree<T extends Comparable<? super T>>
 				parentNode.right = curNode.right;
 			else
 				parentNode.left = curNode.right;
-			if(curNode.right != null)
-				curNode.right.parent = parentNode;
 		} else {
 			//No children, no replacement needed
 			return null;
