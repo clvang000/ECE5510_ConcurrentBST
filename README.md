@@ -1,7 +1,7 @@
 ECE5510 Multiprocessor Programming Final Project
 ================================================
 Analysis of Concurrent Binary Search Trees
-================================================
+------------------------------------------------
 
 Final project for ECE 5510 Multiprocessor Programming.  A set of different concurrent binary search trees using
 various approaches for synchronization and correctness.  The implemented binary trees are:
