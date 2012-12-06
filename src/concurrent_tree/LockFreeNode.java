@@ -52,9 +52,6 @@ public class LockFreeNode<T> {
 		}
 	}
 	
-	/**
-	 * LockFreeNode object variables.
-	 */
 	public T data;
 	private AtomicMarkableReference<ChildNodes> children;
 	
@@ -76,7 +73,8 @@ public class LockFreeNode<T> {
 	 * @param child The new child pointer
 	 * @return True if the child pointer was set, false otherwise
 	 */
-	public boolean insertChild(Child cp, LockFreeNode<T> child) {
+	public boolean insertChild(Child cp, LockFreeNode<T> oldChild,
+			LockFreeNode<T> newChild) {
 		
 		//Create a new child node object to try and replace the current one
 		ChildNodes curCN = children.getReference();

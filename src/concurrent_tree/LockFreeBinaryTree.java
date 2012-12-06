@@ -42,11 +42,13 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 		LockFreeNode<T> curNode = null;
 		LockFreeNode<T> parentNode = null;
 		LockFreeNode<T> gparentNode = null;
-		int compare = 0, oldCompare = 0;
+		LockFreeNode<T> ggparentNode = null;
+		int compare = 0, oldCompare = 0, reallyOldCompare = 0;
 		boolean[] marked = {false};
 		
 		retry: while(true) {
-			if(root.get() == null) {
+			curNode = root.get();
+			if(curNode == null) {
 				//Tree is empty, try to insert newNode as the root
 				if(root.compareAndSet(null, newNode))
 					return true;
@@ -54,10 +56,11 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 					continue retry;
 			} else {
 				//Tree is not empty, iterate into the tree
-				curNode = root.get();
 				while(curNode != null) {
+					ggparentNode = gparentNode;
 					gparentNode = parentNode;
 					parentNode = curNode;
+					reallyOldCompare = oldCompare;
 					oldCompare = compare;
 					compare = curNode.data.compareTo(data);
 					if(compare > 0) {
@@ -80,25 +83,57 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 					}
 				}
 				
-				//TODO handle case where root is being deleted (parentNode == null) and case where
-				//2nd level node is being deleted (gparentNode == null)
-				
-				if(parentNode.isMarked()) {
-					//If parent is marked, try to perform the deletion
-				}
-
-				//Create a subtree of parentNode & curNode, then attempt to
-				//insert it
-				if(compare > 0) {
-					newParent = new LockFreeNode<T>(parentNode.data);
-					newParent.insertChild(Child.LEFT, newNode);
-					newParent.insertChild(Child.RIGHT, curNode);
-				} else {
-					newParent = new LockFreeNode<T>(data);
-					newParent.insertChild(Child.LEFT, curNode);
-					newParent.insertChild(Child.RIGHT, newNode);
+				//Check edge cases
+				if(gparentNode == null) {
+					//Edge case 1: inserting at 1st level (tree only has 1 element)
+					if(parentNode.isMarked()) {
+						root.compareAndSet(parentNode, null);
+						continue retry;
+					}
+					newParent = createSubtree(parentNode, newNode, compare);
+					if(root.compareAndSet(parentNode, newParent))
+						return true;
+					else
+						continue retry;
+				} else if(ggparentNode == null) {
+					//Edge case 2: Inserting at 2nd level (tree has 2 elements)
+					if(parentNode.isMarked()) {
+						if(oldCompare > 0)
+							parentNode = gparentNode.getChild(Child.RIGHT,
+									marked);
+						else
+							parentNode = gparentNode.getChild(Child.LEFT,
+									marked);
+						if(!root.compareAndSet(gparentNode, parentNode))
+							continue retry;
+						newParent = createSubtree(parentNode, newNode,
+								oldCompare);
+						if(root.compareAndSet(parentNode, newParent))
+							return true;
+						else
+							continue retry;
+					}
+				} else if(parentNode.isMarked()) {
+					//Edge case 3: Attempt to delete parentNode if it is marked
+					if(oldCompare > 0)
+						newParent = gparentNode.getChild(Child.RIGHT, marked);
+					else
+						newParent = gparentNode.getChild(Child.LEFT, marked);
+					if(reallyOldCompare > 0) {
+						if(!ggparentNode.insertChild(Child.LEFT, newParent))
+							continue retry;
+					} else {
+						if(!ggparentNode.insertChild(Child.RIGHT, newParent))
+							continue retry;
+					}
+					parentNode = newParent;
+					gparentNode = ggparentNode;
+					compare = oldCompare;
+					oldCompare = reallyOldCompare;
 				}	
 
+				//Attempt insertion
+				newParent = createSubtree(parentNode, newNode, compare);
 				if(oldCompare > 0) {
 					if(gparentNode.insertChild(Child.LEFT, newParent))							
 						return true;
@@ -112,6 +147,31 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 				}
 			}
 		}
+	}
+	
+	/**
+	 * Helper method that creates a subtree of parentNode, curNode, and their
+	 * ordering.
+	 * 
+	 * @param parentNode The parent node which will be replaced by this subtree
+	 * @param newNode The new data being inserted into the tree
+	 * @param compare The ordering of the two nodes (set via a call to
+	 * compareTo (this is parentNode's data compared to newNode)
+	 * @return The new subtree of elements
+	 */
+	private LockFreeNode<T> createSubtree(LockFreeNode<T> parentNode,
+			LockFreeNode<T> newNode, int compare) {
+		LockFreeNode<T> newParent;
+		if(compare > 0) {
+			newParent = new LockFreeNode<T>(parentNode.data);
+			newParent.insertChild(Child.LEFT, newNode);
+			newParent.insertChild(Child.RIGHT, parentNode);
+		} else {
+			newParent = new LockFreeNode<T>(newNode.data);
+			newParent.insertChild(Child.LEFT, parentNode);
+			newParent.insertChild(Child.RIGHT, newNode);
+		}
+		return newParent;
 	}
 
 	/**
@@ -132,11 +192,11 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 		
 		retry: while(true) {
 			//Check to see if the tree is empty
-			if(root.get() == null)
+			curNode = root.get();
+			if(curNode == null)
 				return null;
 			else {
 				//The tree isn't empty, iterate into the tree
-				curNode = root.get();
 				while(curNode != null) {
 					gparentNode = parentNode;
 					parentNode = curNode;
@@ -151,12 +211,16 @@ public class LockFreeBinaryTree<T extends Comparable<? super T>>
 						//into the right subtree
 						curNode = curNode.getChild(Child.RIGHT, marked);
 					} else {
-						//If this is a leaf node, then the data is already in
-						//the tree.  Otherwise, we can keep traversing
+						//If this is a leaf node, then the data is in the tree
+						//and can be removed.  Otherwise, we keep traversing
 						if(curNode.isLeaf()) {
-							//Attempt to mark the parent node
+							//Attempt to mark the current node
 							if(!curNode.mark())
 								continue retry;
+							
+							//TODO handle situations: deletion of root (parentNode + gparentNode =
+							//null) and deletion of 2nd level node (gparentNode = null)
+							
 							//Logically marked the node, now attempt to
 							//physically remove it.  The linearization point
 							//was the logical removal, so even if we can't
