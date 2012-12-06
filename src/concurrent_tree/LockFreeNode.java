@@ -53,18 +53,33 @@ public class LockFreeNode<T> {
 	}
 	
 	public T data;
-	private AtomicMarkableReference<ChildNodes> children;
+	public AtomicMarkableReference<ChildNodes> children;
 	
 	/**
 	 * Instantiates a LockFreeNode object.  Stores a reference to the data
 	 * and instantiates the AtomicMarkableReferences for the parent and
 	 * children nodes.
-	 * @param data The data object stored by the LockFreeNode
+	 * @param data The data object stored in the LockFreeNode
 	 */
 	public LockFreeNode(T data) {
 		this.data = data;
 		children = new AtomicMarkableReference<ChildNodes>(
 				new ChildNodes(), false);
+	}
+	
+	/**
+	 * Overloaded constructor.  Instantiates a LockFreeNode object with the
+	 * specified data and child references.
+	 * 
+	 * @param data The data object stored in the LockFreeNode
+	 * @param leftChild The left child of this new node
+	 * @param rightChild The right child of this new node
+	 */
+	public LockFreeNode(T data, LockFreeNode<T> leftChild,
+			LockFreeNode<T> rightChild) {
+		this.data = data;
+		children = new AtomicMarkableReference<ChildNodes>(
+				new ChildNodes(leftChild, rightChild), false);
 	}
 	
 	/**
@@ -81,10 +96,14 @@ public class LockFreeNode<T> {
 		ChildNodes newCN;
 		switch(cp) {
 		case RIGHT:
-			newCN = new ChildNodes(curCN.left, child);
+			if(curCN.right != oldChild)
+				return false;
+			newCN = new ChildNodes(curCN.left, newChild);
 			break;
 		case LEFT:
-			newCN = new ChildNodes(child, curCN.right);
+			if(curCN.left != oldChild)
+				return false;
+			newCN = new ChildNodes(newChild, curCN.right);
 			break;
 		default:
 			return false;
